@@ -17,7 +17,7 @@ This README covers:
 
 ```mermaid
 flowchart LR
-    user[Client / Trader] -->|"HTTP \n(Submit Order, \nQuery Status)"| TC[Trade Controller Service]
+    user[Client / Trader] -->|"HTTP <br />(Submit Order, <br />Query Status)"| TC[Trade Controller Service]
     TC -->|via Redis Pub/Sub| TS[Trade Service]
 
     TS -->|via Redis Pub/Sub| AS[Account Service]
@@ -32,7 +32,7 @@ flowchart LR
     TS -->|via Redis Pub/Sub| SS[Settlement Service]
     SS -->|via Redis Pub/Sub| TS
 
-    TS -->|"status updates \n(via Redis)"| TC
+    TS -->|"status updates <br />(via Redis)"| TC
 ```
 
 **Diagram:** Overall system architecture. Solid arrows indicate the flow of trade events through the services (all inter-service communication is asynchronous via Redis Pub/Sub channels). The Trade Controller receives HTTP requests from the client and interacts with the Trade Service internally via Redis. The Trade Service orchestrates the trade through Account, Execution, Clearing, and Settlement services, each of which responds back via Redis. (For simplicity, the Redis message broker and the specific pub/sub channels are not drawn explicitly, but every inter-service arrow represents a Redis-mediated message exchange.)
@@ -488,7 +488,7 @@ The following diagram illustrates the overall architecture of the KLEAR system, 
 
 ```mermaid
 flowchart LR
-    user[Client / Trader] -->|"HTTP \n(Submit Order, \nQuery Status)"| TC[Trade Controller Service]
+    user[Client / Trader] -->|"HTTP <br />(Submit Order, <br />Query Status)"| TC[Trade Controller Service]
     TC -->|via Redis Pub/Sub| TS[Trade Service]
 
     TS -->|via Redis Pub/Sub| AS[Account Service]
@@ -503,7 +503,7 @@ flowchart LR
     TS -->|via Redis Pub/Sub| SS[Settlement Service]
     SS -->|via Redis Pub/Sub| TS
 
-    TS -->|"status updates \n(via Redis)"| TC
+    TS -->|"status updates <br />(via Redis)"| TC
 ```
 
 **Diagram:** Overall system architecture. Solid arrows indicate the flow of trade events through the services (all inter-service communication is asynchronous via Redis Pub/Sub channels). The Trade Controller receives HTTP requests from the client and interacts with the Trade Service internally via Redis. The Trade Service orchestrates the trade through Account, Execution, Clearing, and Settlement services, each of which responds back via Redis. (For simplicity, the Redis message broker and the specific pub/sub channels are not drawn explicitly, but every inter-service arrow represents a Redis-mediated message exchange.)
@@ -635,41 +635,41 @@ sequenceDiagram
     participant CS as Clearing Service
     participant SS as Settlement Service
 
-    U->>TC: HTTP POST /api/trades/submit (trade JSON)
+    U->>TC: HTTP <br />POST /api/trades/submit (trade JSON)
     activate TC
     note right of TC: Generate or capture Order ID
     TC-->>U: 200 OK + {"orderId": "..."}
-    TC->>TS: Publish New Trade Event (via Redis)
+    TC->>TS: Publish New Trade Event 
     deactivate TC
     activate TS
 
-    TS->>AS: Publish Validation Request (via Redis)
+    TS->>AS: Publish Validation Request 
     activate AS
-    AS-->>TS: Publish Validation Result OK (via Redis)
+    AS-->>TS: Publish Validation Result OK 
     deactivate AS
 
-    TS->>ES: Publish Execution Request (via Redis)
+    TS->>ES: Publish Execution Request 
     activate ES
-    ES-->>TS: Publish Execution Result (via Redis)
+    ES-->>TS: Publish Execution Result 
     deactivate ES
 
-    TS->>CS: Publish Clearing Request (via Redis)
+    TS->>CS: Publish Clearing Request 
     activate CS
-    CS-->>TS: Publish Clearing Complete (via Redis)
+    CS-->>TS: Publish Clearing Complete 
     deactivate CS
 
-    TS->>SS: Publish Settlement Request (via Redis)
+    TS->>SS: Publish Settlement Request 
     activate SS
-    SS-->>TS: Publish Settlement Confirmed (via Redis)
+    SS-->>TS: Publish Settlement Confirmed 
     deactivate SS
     deactivate TS
 
     Note over TS: Trade status stored as "Settled"
 
-    U->>TC: HTTP GET /api/trades/{ORDER_ID}/status
+    U->>TC: HTTP <br />GET /api/trades/{ORDER_ID}/status
     activate TC
-    TC->>TS: Publish Status Request (via Redis)
-    TS-->>TC: Publish Current Status (via Redis)
+    TC->>TS: Publish Status Request 
+    TS-->>TC: Publish Current Status 
     TC-->>U: 200 OK + {"status": "Settled"}
     deactivate TC
 ```
