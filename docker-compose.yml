@@ -1,0 +1,104 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: klear-redis
+    ports:
+      - "6379:6379"
+
+  trade-controller:
+    image: maven:3.9.9-eclipse-temurin-17
+    container_name: klear-trade-controller
+    working_dir: /app
+    volumes:
+      - ./:/app
+    # Build all modules (including shared-libs), then run trade-controller
+    command: >
+      bash -c "mvn -q -DskipTests install &&
+               mvn -q -DskipTests -pl trade-controller spring-boot:run"
+    environment:
+      - REDIS_IP=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    ports:
+      - "8080:8080"
+
+  trade-service:
+    image: maven:3.9.9-eclipse-temurin-17
+    container_name: klear-trade-service
+    working_dir: /app
+    volumes:
+      - ./:/app
+    # Build all modules, then run trade-service
+    command: >
+      bash -c "mvn -q -DskipTests install &&
+               mvn -q -DskipTests -pl services/trade-service spring-boot:run"
+    environment:
+      - REDIS_IP=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+
+  account-service:
+    image: maven:3.9.9-eclipse-temurin-17
+    container_name: klear-account-service
+    working_dir: /app
+    volumes:
+      - ./:/app
+    # Build all modules, then run account-service
+    command: >
+      bash -c "mvn -q -DskipTests install &&
+               mvn -q -DskipTests -pl services/account-service spring-boot:run"
+    environment:
+      - REDIS_IP=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+
+  execution-service:
+    image: maven:3.9.9-eclipse-temurin-17
+    container_name: klear-execution-service
+    working_dir: /app
+    volumes:
+      - ./:/app
+    # Build all modules, then run execution-service
+    command: >
+      bash -c "mvn -q -DskipTests install &&
+               mvn -q -DskipTests -pl services/execution-service spring-boot:run"
+    environment:
+      - REDIS_IP=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+
+  clearing-service:
+    image: maven:3.9.9-eclipse-temurin-17
+    container_name: klear-clearing-service
+    working_dir: /app
+    volumes:
+      - ./:/app
+    # Build all modules, then run clearing-service
+    command: >
+      bash -c "mvn -q -DskipTests install &&
+               mvn -q -DskipTests -pl services/clearing-service spring-boot:run"
+    environment:
+      - REDIS_IP=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+
+  settlement-service:
+    image: maven:3.9.9-eclipse-temurin-17
+    container_name: klear-settlement-service
+    working_dir: /app
+    volumes:
+      - ./:/app
+    # Build all modules, then run settlement-service
+    command: >
+      bash -c "mvn -q -DskipTests install &&
+               mvn -q -DskipTests -pl services/settlement-service spring-boot:run"
+    environment:
+      - REDIS_IP=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
