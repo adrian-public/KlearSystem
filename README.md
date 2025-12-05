@@ -17,7 +17,7 @@ This README covers:
 
 ```mermaid
 flowchart LR
-    user[Client / Trader] -->|"HTTP (Submit Order, Query Status)"| TC[Trade Controller Service]
+    user[Client / Trader] -->|"HTTP \n(Submit Order, \nQuery Status)"| TC[Trade Controller Service]
     TC -->|via Redis Pub/Sub| TS[Trade Service]
 
     TS -->|via Redis Pub/Sub| AS[Account Service]
@@ -32,7 +32,7 @@ flowchart LR
     TS -->|via Redis Pub/Sub| SS[Settlement Service]
     SS -->|via Redis Pub/Sub| TS
 
-    TS -->|"status updates (via Redis)"| TC
+    TS -->|"status updates \n(via Redis)"| TC
 ```
 
 **Diagram:** Overall system architecture. Solid arrows indicate the flow of trade events through the services (all inter-service communication is asynchronous via Redis Pub/Sub channels). The Trade Controller receives HTTP requests from the client and interacts with the Trade Service internally via Redis. The Trade Service orchestrates the trade through Account, Execution, Clearing, and Settlement services, each of which responds back via Redis. (For simplicity, the Redis message broker and the specific pub/sub channels are not drawn explicitly, but every inter-service arrow represents a Redis-mediated message exchange.)
@@ -488,7 +488,7 @@ The following diagram illustrates the overall architecture of the KLEAR system, 
 
 ```mermaid
 flowchart LR
-    user[Client / Trader] -->|"HTTP (Submit Order, Query Status)"| TC[Trade Controller Service]
+    user[Client / Trader] -->|"HTTP \n(Submit Order, \nQuery Status)"| TC[Trade Controller Service]
     TC -->|via Redis Pub/Sub| TS[Trade Service]
 
     TS -->|via Redis Pub/Sub| AS[Account Service]
@@ -503,7 +503,7 @@ flowchart LR
     TS -->|via Redis Pub/Sub| SS[Settlement Service]
     SS -->|via Redis Pub/Sub| TS
 
-    TS -->|"status updates (via Redis)"| TC
+    TS -->|"status updates \n(via Redis)"| TC
 ```
 
 **Diagram:** Overall system architecture. Solid arrows indicate the flow of trade events through the services (all inter-service communication is asynchronous via Redis Pub/Sub channels). The Trade Controller receives HTTP requests from the client and interacts with the Trade Service internally via Redis. The Trade Service orchestrates the trade through Account, Execution, Clearing, and Settlement services, each of which responds back via Redis. (For simplicity, the Redis message broker and the specific pub/sub channels are not drawn explicitly, but every inter-service arrow represents a Redis-mediated message exchange.)
