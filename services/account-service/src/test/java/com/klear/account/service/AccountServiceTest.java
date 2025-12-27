@@ -60,4 +60,60 @@ class AccountServiceTest {
     void testGetServiceName() {
         assertEquals("AccountService", accountService.getServiceName());
     }
+
+    @Test
+    void testProcessTrade_FailsOnExcessiveQuantity() throws Exception {
+        testOrder.setQuantity(50000); // Exceeds max of 10000
+        Trade trade = new Trade("ORDER-003", testOrder, OrderStatus.UNKNOWN);
+
+        Method processTrade = AccountService.class.getDeclaredMethod("processTrade", Trade.class);
+        processTrade.setAccessible(true);
+        Trade result = (Trade) processTrade.invoke(accountService, trade);
+
+        assertEquals(OrderStatus.FAILED, result.getStatus());
+        assertEquals("VALIDATION", result.getFailureStage());
+        assertTrue(result.getFailureReason().contains("Position limit exceeded"));
+    }
+
+    @Test
+    void testProcessTrade_FailsOnExcessivePrice() throws Exception {
+        testOrder.setPrice(50000.0); // Exceeds max of 10000
+        Trade trade = new Trade("ORDER-004", testOrder, OrderStatus.UNKNOWN);
+
+        Method processTrade = AccountService.class.getDeclaredMethod("processTrade", Trade.class);
+        processTrade.setAccessible(true);
+        Trade result = (Trade) processTrade.invoke(accountService, trade);
+
+        assertEquals(OrderStatus.FAILED, result.getStatus());
+        assertEquals("VALIDATION", result.getFailureStage());
+        assertTrue(result.getFailureReason().contains("Price exceeds maximum"));
+    }
+
+    @Test
+    void testProcessTrade_FailsOnEmptyClientId() throws Exception {
+        testOrder.setClientId("");
+        Trade trade = new Trade("ORDER-005", testOrder, OrderStatus.UNKNOWN);
+
+        Method processTrade = AccountService.class.getDeclaredMethod("processTrade", Trade.class);
+        processTrade.setAccessible(true);
+        Trade result = (Trade) processTrade.invoke(accountService, trade);
+
+        assertEquals(OrderStatus.FAILED, result.getStatus());
+        assertEquals("VALIDATION", result.getFailureStage());
+        assertTrue(result.getFailureReason().contains("Invalid client ID"));
+    }
+
+    @Test
+    void testProcessTrade_FailsOnNullClientId() throws Exception {
+        testOrder.setClientId(null);
+        Trade trade = new Trade("ORDER-006", testOrder, OrderStatus.UNKNOWN);
+
+        Method processTrade = AccountService.class.getDeclaredMethod("processTrade", Trade.class);
+        processTrade.setAccessible(true);
+        Trade result = (Trade) processTrade.invoke(accountService, trade);
+
+        assertEquals(OrderStatus.FAILED, result.getStatus());
+        assertEquals("VALIDATION", result.getFailureStage());
+        assertTrue(result.getFailureReason().contains("Invalid client ID"));
+    }
 }

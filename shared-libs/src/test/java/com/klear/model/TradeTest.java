@@ -129,4 +129,68 @@ class TradeTest {
         assertEquals("", trade.getClearingMessage());
         assertEquals("", trade.getSettlementMessage());
     }
+
+    @Test
+    void testFailureFields() {
+        Trade trade = new Trade("ORDER-010", testOrder, OrderStatus.FAILED);
+
+        trade.setFailureReason("Position limit exceeded");
+        trade.setFailureStage("VALIDATION");
+
+        assertEquals("Position limit exceeded", trade.getFailureReason());
+        assertEquals("VALIDATION", trade.getFailureStage());
+    }
+
+    @Test
+    void testDefaultFailureFieldValues() {
+        Trade trade = new Trade("ORDER-011", testOrder, OrderStatus.UNKNOWN);
+
+        // Default values should be empty strings
+        assertEquals("", trade.getFailureReason());
+        assertEquals("", trade.getFailureStage());
+    }
+
+    @Test
+    void testFailedStatusTransition() {
+        Trade trade = new Trade("ORDER-012", testOrder, OrderStatus.UNKNOWN);
+
+        // UNKNOWN -> FAILED (can fail at any stage)
+        trade.setStatus(OrderStatus.FAILED);
+        trade.setFailureStage("VALIDATION");
+        trade.setFailureReason("Invalid client ID");
+
+        assertEquals(OrderStatus.FAILED, trade.getStatus());
+        assertEquals("VALIDATION", trade.getFailureStage());
+        assertEquals("Invalid client ID", trade.getFailureReason());
+    }
+
+    @Test
+    void testJsonSerializationWithFailure() throws Exception {
+        Trade trade = new Trade("ORDER-013", testOrder, OrderStatus.FAILED);
+        trade.setFailureReason("Risk limit exceeded");
+        trade.setFailureStage("CLEARING");
+
+        String json = objectMapper.writeValueAsString(trade);
+
+        assertTrue(json.contains("ORDER-013"));
+        assertTrue(json.contains("FAILED"));
+        assertTrue(json.contains("Risk limit exceeded"));
+        assertTrue(json.contains("CLEARING"));
+    }
+
+    @Test
+    void testJsonRoundTripWithFailure() throws Exception {
+        Trade original = new Trade("ORDER-014", testOrder, OrderStatus.FAILED);
+        original.setFailureReason("Price exceeds maximum");
+        original.setFailureStage("VALIDATION");
+        original.setValidationMessage("Validation failed");
+
+        String json = objectMapper.writeValueAsString(original);
+        Trade deserialized = objectMapper.readValue(json, Trade.class);
+
+        assertEquals(original.getOrderId(), deserialized.getOrderId());
+        assertEquals(original.getStatus(), deserialized.getStatus());
+        assertEquals(original.getFailureReason(), deserialized.getFailureReason());
+        assertEquals(original.getFailureStage(), deserialized.getFailureStage());
+    }
 }

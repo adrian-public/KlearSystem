@@ -2,6 +2,8 @@ package com.klear.clearing.service;
 
 import com.klear.communication.core.BaseService;
 import com.klear.model.order.OrderStatus;
+
+import static com.klear.model.order.OrderStatus.FAILED;
 import com.klear.model.queue.QueueItemTypes;
 import com.klear.model.response.ClearingResponse;
 import com.klear.model.trade.Trade;
@@ -11,6 +13,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ClearingService extends BaseService {
+
+    private static final double MAX_NETTED_AMOUNT = 1_000_000.0;
 
     @Value("${redis_ip}")
     private String ipAddress;
@@ -55,6 +59,15 @@ public class ClearingService extends BaseService {
     protected Trade processTrade(Trade trade) {
         // Simulate clearing with a CCP
         double nettedAmount = trade.getOrder().getQuantity() * trade.getExecutedPrice();
+
+        // Check risk limit
+        if (nettedAmount > MAX_NETTED_AMOUNT) {
+            trade.setStatus(FAILED);
+            trade.setFailureStage("CLEARING");
+            trade.setFailureReason("Risk limit exceeded: netted amount " + nettedAmount + " exceeds max " + MAX_NETTED_AMOUNT);
+            trade.setClearingMessage("Clearing failed: Risk limit exceeded");
+            return trade;
+        }
 
         ClearingResponse clearingResponse = new ClearingResponse(
                 trade.getOrderId(), nettedAmount, "Clearing Successful");

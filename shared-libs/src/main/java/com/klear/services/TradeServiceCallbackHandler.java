@@ -8,4 +8,5 @@ public interface TradeServiceCallbackHandler {
     void onExecution(Trade trade);
     void onClearing(Trade trade);
     void onSettlement(Trade trade);
+    void onFailure(Trade trade);
 }

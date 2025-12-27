@@ -64,6 +64,11 @@ public class TradeRestController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Order not found. Order ID: " + orderId);
         }
 
+        if (status == OrderStatus.FAILED) {
+            log.warn("Order failed: orderId={}", orderId);
+            return ResponseEntity.status(HttpStatus.OK).body("Order Status: FAILED. Check logs for details.");
+        }
+
         return ResponseEntity.ok("Order Status: " + status.name());
     }
 }

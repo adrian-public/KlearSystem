@@ -7,6 +7,7 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import static com.klear.model.order.OrderStatus.FAILED;
 import static com.klear.model.order.OrderStatus.SETTLED;
 
 @Service
@@ -53,6 +54,15 @@ public class SettlementService extends BaseService {
 
     @Override
     protected Trade processTrade(Trade trade) {
+        // Validate settlement amount
+        if (trade.getNettedAmount() <= 0) {
+            trade.setStatus(FAILED);
+            trade.setFailureStage("SETTLEMENT");
+            trade.setFailureReason("Invalid settlement amount: must be greater than 0");
+            trade.setSettlementMessage("Settlement failed: Invalid settlement amount");
+            return trade;
+        }
+
         // Simulate settlement logic
         trade.setSettlementMessage("Settlement Successful");
         trade.setStatus(SETTLED);

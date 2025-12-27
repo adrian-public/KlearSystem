@@ -143,6 +143,10 @@ public abstract class ServiceClient implements ServiceClientInterface, ServiceCl
                             this.tradeServiceCallbackHandler.onSettlement(trade);
                         }
                         break;
+                        case FAILED: {
+                            this.tradeServiceCallbackHandler.onFailure(trade);
+                        }
+                        break;
                     }
                 }
             }

@@ -70,4 +70,60 @@ class ExecutionServiceTest {
     void testGetServiceName() {
         assertEquals("ExecutionService", executionService.getServiceName());
     }
+
+    @Test
+    void testProcessTrade_FailsOnZeroPrice() throws Exception {
+        testOrder.setPrice(0);
+        Trade trade = new Trade("ORDER-004", testOrder, OrderStatus.VALIDATED);
+
+        Method processTrade = ExecutionService.class.getDeclaredMethod("processTrade", Trade.class);
+        processTrade.setAccessible(true);
+        Trade result = (Trade) processTrade.invoke(executionService, trade);
+
+        assertEquals(OrderStatus.FAILED, result.getStatus());
+        assertEquals("EXECUTION", result.getFailureStage());
+        assertTrue(result.getFailureReason().contains("Invalid price"));
+    }
+
+    @Test
+    void testProcessTrade_FailsOnNegativePrice() throws Exception {
+        testOrder.setPrice(-10.0);
+        Trade trade = new Trade("ORDER-005", testOrder, OrderStatus.VALIDATED);
+
+        Method processTrade = ExecutionService.class.getDeclaredMethod("processTrade", Trade.class);
+        processTrade.setAccessible(true);
+        Trade result = (Trade) processTrade.invoke(executionService, trade);
+
+        assertEquals(OrderStatus.FAILED, result.getStatus());
+        assertEquals("EXECUTION", result.getFailureStage());
+        assertTrue(result.getFailureReason().contains("Invalid price"));
+    }
+
+    @Test
+    void testProcessTrade_FailsOnZeroQuantity() throws Exception {
+        testOrder.setQuantity(0);
+        Trade trade = new Trade("ORDER-006", testOrder, OrderStatus.VALIDATED);
+
+        Method processTrade = ExecutionService.class.getDeclaredMethod("processTrade", Trade.class);
+        processTrade.setAccessible(true);
+        Trade result = (Trade) processTrade.invoke(executionService, trade);
+
+        assertEquals(OrderStatus.FAILED, result.getStatus());
+        assertEquals("EXECUTION", result.getFailureStage());
+        assertTrue(result.getFailureReason().contains("Invalid quantity"));
+    }
+
+    @Test
+    void testProcessTrade_FailsOnNegativeQuantity() throws Exception {
+        testOrder.setQuantity(-100);
+        Trade trade = new Trade("ORDER-007", testOrder, OrderStatus.VALIDATED);
+
+        Method processTrade = ExecutionService.class.getDeclaredMethod("processTrade", Trade.class);
+        processTrade.setAccessible(true);
+        Trade result = (Trade) processTrade.invoke(executionService, trade);
+
+        assertEquals(OrderStatus.FAILED, result.getStatus());
+        assertEquals("EXECUTION", result.getFailureStage());
+        assertTrue(result.getFailureReason().contains("Invalid quantity"));
+    }
 }

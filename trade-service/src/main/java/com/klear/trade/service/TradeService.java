@@ -249,6 +249,19 @@ public class TradeService
         }
     }
 
+    @Override
+    public void onFailure(Trade trade) {
+        String orderId = trade.getOrderId();
+        Trade masterTrade = concurrentTradeStatusMap.get(orderId);
+        if (masterTrade != null) {
+            masterTrade.setStatus(OrderStatus.FAILED);
+            masterTrade.setFailureReason(trade.getFailureReason());
+            masterTrade.setFailureStage(trade.getFailureStage());
+            log.error("Trade failed: orderId={} stage={} reason={}",
+                    orderId, trade.getFailureStage(), trade.getFailureReason());
+        }
+    }
+
     @PreDestroy
     public void shutdown() {
         log.info("Shutting down TradeService");

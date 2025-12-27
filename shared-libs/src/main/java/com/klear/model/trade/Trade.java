@@ -14,6 +14,8 @@ public class Trade {
     private String validationMessage = "";
     private String clearingMessage = "";
     private String settlementMessage = "";
+    private String failureReason = "";
+    private String failureStage = "";
 
     public Trade(){}
 
@@ -98,5 +100,21 @@ public class Trade {
 
     public void setExecutedTimestamp(long executedTimestamp) {
         this.executedTimestamp = executedTimestamp;
+    }
+
+    public String getFailureReason() {
+        return failureReason;
+    }
+
+    public void setFailureReason(String failureReason) {
+        this.failureReason = failureReason;
+    }
+
+    public String getFailureStage() {
+        return failureStage;
+    }
+
+    public void setFailureStage(String failureStage) {
+        this.failureStage = failureStage;
     }
 }

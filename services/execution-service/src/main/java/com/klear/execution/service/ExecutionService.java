@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import static com.klear.model.order.OrderStatus.EXECUTED;
+import static com.klear.model.order.OrderStatus.FAILED;
 
 @Service
 public class ExecutionService extends BaseService {
@@ -54,6 +55,22 @@ public class ExecutionService extends BaseService {
 
     @Override
     protected Trade processTrade(Trade trade) {
+        // Validate price
+        if (trade.getOrder().getPrice() <= 0) {
+            trade.setStatus(FAILED);
+            trade.setFailureStage("EXECUTION");
+            trade.setFailureReason("Invalid price: must be greater than 0");
+            return trade;
+        }
+
+        // Validate quantity
+        if (trade.getOrder().getQuantity() <= 0) {
+            trade.setStatus(FAILED);
+            trade.setFailureStage("EXECUTION");
+            trade.setFailureReason("Invalid quantity: must be greater than 0");
+            return trade;
+        }
+
         // Simulate trade matching and execution logic on an exchange
         String orderId = trade.getOrderId();
         double executedPrice = trade.getOrder().getPrice(); // Simulated price

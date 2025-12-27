@@ -55,4 +55,32 @@ class SettlementServiceTest {
     void testGetServiceName() {
         assertEquals("SettlementService", settlementService.getServiceName());
     }
+
+    @Test
+    void testProcessTrade_FailsOnZeroNettedAmount() throws Exception {
+        Trade trade = new Trade("ORDER-003", testOrder, OrderStatus.CLEARED);
+        trade.setNettedAmount(0);
+
+        Method processTrade = SettlementService.class.getDeclaredMethod("processTrade", Trade.class);
+        processTrade.setAccessible(true);
+        Trade result = (Trade) processTrade.invoke(settlementService, trade);
+
+        assertEquals(OrderStatus.FAILED, result.getStatus());
+        assertEquals("SETTLEMENT", result.getFailureStage());
+        assertTrue(result.getFailureReason().contains("Invalid settlement amount"));
+    }
+
+    @Test
+    void testProcessTrade_FailsOnNegativeNettedAmount() throws Exception {
+        Trade trade = new Trade("ORDER-004", testOrder, OrderStatus.CLEARED);
+        trade.setNettedAmount(-100.0);
+
+        Method processTrade = SettlementService.class.getDeclaredMethod("processTrade", Trade.class);
+        processTrade.setAccessible(true);
+        Trade result = (Trade) processTrade.invoke(settlementService, trade);
+
+        assertEquals(OrderStatus.FAILED, result.getStatus());
+        assertEquals("SETTLEMENT", result.getFailureStage());
+        assertTrue(result.getFailureReason().contains("Invalid settlement amount"));
+    }
 }

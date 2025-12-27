@@ -71,4 +71,35 @@ class ClearingServiceTest {
     void testGetServiceName() {
         assertEquals("ClearingService", clearingService.getServiceName());
     }
+
+    @Test
+    void testProcessTrade_FailsOnRiskLimitExceeded() throws Exception {
+        // nettedAmount = 10000 * 150 = 1,500,000 which exceeds max of 1,000,000
+        testOrder.setQuantity(10000);
+        Trade trade = new Trade("ORDER-004", testOrder, OrderStatus.EXECUTED);
+        trade.setExecutedPrice(150.00);
+
+        Method processTrade = ClearingService.class.getDeclaredMethod("processTrade", Trade.class);
+        processTrade.setAccessible(true);
+        Trade result = (Trade) processTrade.invoke(clearingService, trade);
+
+        assertEquals(OrderStatus.FAILED, result.getStatus());
+        assertEquals("CLEARING", result.getFailureStage());
+        assertTrue(result.getFailureReason().contains("Risk limit exceeded"));
+    }
+
+    @Test
+    void testProcessTrade_SucceedsAtRiskLimit() throws Exception {
+        // nettedAmount = 10000 * 100 = 1,000,000 which equals max
+        testOrder.setQuantity(10000);
+        Trade trade = new Trade("ORDER-005", testOrder, OrderStatus.EXECUTED);
+        trade.setExecutedPrice(100.00);
+
+        Method processTrade = ClearingService.class.getDeclaredMethod("processTrade", Trade.class);
+        processTrade.setAccessible(true);
+        Trade result = (Trade) processTrade.invoke(clearingService, trade);
+
+        assertEquals(OrderStatus.CLEARED, result.getStatus());
+        assertEquals(1000000.00, result.getNettedAmount(), 0.001);
+    }
 }
