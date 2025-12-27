@@ -7,7 +7,7 @@
         <groupId>com.klear</groupId>
         <artifactId>klear-master</artifactId>
         <version>1.0-SNAPSHOT</version>
-        <relativePath>../../pom.xml</relativePath> <!-- Adjust this path -->
+        <relativePath>../pom.xml</relativePath> <!-- Adjust this path -->
 
     </parent>
 
@@ -72,5 +72,17 @@
             <artifactId>logback-core</artifactId>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <classifier>exec</classifier>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

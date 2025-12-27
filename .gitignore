@@ -10,7 +10,7 @@
 *.ear
 
 # Maven directories
-/target/
+target/
 /build/
 
 # IntelliJ IDEA

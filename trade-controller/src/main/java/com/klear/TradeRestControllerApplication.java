@@ -5,7 +5,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
-@ComponentScan(basePackages = {"com.klear.controller", "com.klear.trade.service.client"})
+@ComponentScan(basePackages = {"com.klear.controller", "com.klear.trade.service.client",
+"com.klear.services"})
 public class TradeRestControllerApplication {
 
 	public static void main(String[] args) {

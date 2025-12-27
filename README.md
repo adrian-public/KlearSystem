@@ -161,7 +161,9 @@ curl -X POST http://localhost:8080/api/trades/submit \
         "price": 150.0
       }'
 ```
-
+```bash
+curl -X POST http://localhost:8080/api/trades/submit -H "Content-Type: application/json" -d '{ "clientId": "123456", "stockSymbol": "AAPL", "quantity": 100, "price": 150.0 }'
+```
 Example response:
 
 ```text

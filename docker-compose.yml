@@ -6,15 +6,17 @@ services:
       - "6379:6379"
 
   trade-controller:
-    image: maven:3.9.9-eclipse-temurin-17
+    image: eclipse-temurin:17-jre
     container_name: klear-trade-controller
     working_dir: /app
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
-      - ./:/app
-    # Build all modules (including shared-libs), then run trade-controller
-    command: >
-      bash -c "mvn -q -DskipTests install &&
-               mvn -q -DskipTests -pl trade-controller spring-boot:run"
+      - ./trade-controller/target/trade-controller-0.0.1-SNAPSHOT.jar:/app/app.jar
+    command:
+      - java
+      - -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+      - -jar
+      - /app/app.jar
     environment:
       - REDIS_IP=redis
       - REDIS_PORT=6379
@@ -22,83 +24,104 @@ services:
       - redis
     ports:
       - "8080:8080"
+      - "5005:5005"
 
   trade-service:
-    image: maven:3.9.9-eclipse-temurin-17
+    image: eclipse-temurin:17-jre
     container_name: klear-trade-service
     working_dir: /app
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
-      - ./:/app
-    # Build all modules, then run trade-service
-    command: >
-      bash -c "mvn -q -DskipTests install &&
-               mvn -q -DskipTests -pl services/trade-service spring-boot:run"
+      - ./trade-service/target/trade-service-1.0-SNAPSHOT-exec.jar:/app/app.jar
+    command:
+      - java
+      - -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5006
+      - -jar
+      - /app/app.jar
     environment:
       - REDIS_IP=redis
       - REDIS_PORT=6379
     depends_on:
       - redis
+    ports:
+      - "5006:5006"
 
   account-service:
-    image: maven:3.9.9-eclipse-temurin-17
+    image: eclipse-temurin:17-jre
     container_name: klear-account-service
     working_dir: /app
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
-      - ./:/app
-    # Build all modules, then run account-service
-    command: >
-      bash -c "mvn -q -DskipTests install &&
-               mvn -q -DskipTests -pl services/account-service spring-boot:run"
+      - ./services/account-service/target/account-service-1.0-SNAPSHOT.jar:/app/app.jar
+    command:
+      - java
+      - -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5007
+      - -jar
+      - /app/app.jar
     environment:
       - REDIS_IP=redis
       - REDIS_PORT=6379
     depends_on:
       - redis
+    ports:
+      - "5007:5007"
 
   execution-service:
-    image: maven:3.9.9-eclipse-temurin-17
+    image: eclipse-temurin:17-jre
     container_name: klear-execution-service
     working_dir: /app
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
-      - ./:/app
-    # Build all modules, then run execution-service
-    command: >
-      bash -c "mvn -q -DskipTests install &&
-               mvn -q -DskipTests -pl services/execution-service spring-boot:run"
+      - ./services/execution-service/target/execution-service-1.0-SNAPSHOT.jar:/app/app.jar
+    command:
+      - java
+      - -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5008
+      - -jar
+      - /app/app.jar
     environment:
       - REDIS_IP=redis
       - REDIS_PORT=6379
     depends_on:
       - redis
+    ports:
+      - "5008:5008"
 
   clearing-service:
-    image: maven:3.9.9-eclipse-temurin-17
+    image: eclipse-temurin:17-jre
     container_name: klear-clearing-service
     working_dir: /app
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
-      - ./:/app
-    # Build all modules, then run clearing-service
-    command: >
-      bash -c "mvn -q -DskipTests install &&
-               mvn -q -DskipTests -pl services/clearing-service spring-boot:run"
+      - ./services/clearing-service/target/clearing-service-1.0-SNAPSHOT.jar:/app/app.jar
+    command:
+      - java
+      - -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5009
+      - -jar
+      - /app/app.jar
     environment:
       - REDIS_IP=redis
       - REDIS_PORT=6379
     depends_on:
       - redis
+    ports:
+      - "5009:5009"
 
   settlement-service:
-    image: maven:3.9.9-eclipse-temurin-17
+    image: eclipse-temurin:17-jre
     container_name: klear-settlement-service
     working_dir: /app
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
-      - ./:/app
-    # Build all modules, then run settlement-service
-    command: >
-      bash -c "mvn -q -DskipTests install &&
-               mvn -q -DskipTests -pl services/settlement-service spring-boot:run"
+      - ./services/settlement-service/target/settlement-service-1.0-SNAPSHOT.jar:/app/app.jar
+    command:
+      - java
+      - -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5010
+      - -jar
+      - /app/app.jar
     environment:
       - REDIS_IP=redis
       - REDIS_PORT=6379
     depends_on:
       - redis
+    ports:
+      - "5010:5010"
