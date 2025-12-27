@@ -6,12 +6,18 @@ import com.klear.communication.client.AccountServiceClient;
 import com.klear.communication.client.ClearingServiceClient;
 import com.klear.communication.client.ExecutionServiceClient;
 import com.klear.communication.client.SettlementServiceClient;
+import com.klear.communication.core.JedisPubSubAsync;
 import com.klear.model.order.Order;
 import com.klear.model.order.OrderStatus;
 import com.klear.model.response.SettlementResponse;
 import com.klear.model.trade.Trade;
-import com.klear.services.*;
+import com.klear.communication.core.ServiceClientCallback;
+import com.klear.services.TradeServiceCallbackHandler;
+import com.klear.services.TradeServiceClientInterface;
+import com.klear.services.TradeServiceClientMessage;
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
@@ -19,13 +25,20 @@ import org.springframework.stereotype.Service;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPubSub;
 
+import jakarta.annotation.PreDestroy;
+
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class TradeService
-        implements TradeServiceClientInterface, TradeServiceCallbackHandler, TradeServiceClientCallback {
+        implements TradeServiceClientInterface, TradeServiceCallbackHandler, ServiceClientCallback {
+
+    private static final Logger log = LoggerFactory.getLogger(TradeService.class);
 
     @Autowired
     private ApplicationContext applicationContext;
@@ -44,7 +57,13 @@ public class TradeService
 
     private final Map<String, Trade> concurrentTradeStatusMap = new ConcurrentHashMap<>();
 
-    ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private final ExecutorService subscriberExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "TradeService-subscriber");
+        t.setDaemon(false);
+        return t;
+    });
 
     @Value("${redis_ip}")
     private String ipAddress;
@@ -54,7 +73,6 @@ public class TradeService
 
     @Value("${trade_service_channel_name}")
     private String channelName;
-
 
     private Jedis jedisPub = null;
     private Jedis jedisSub = null;
@@ -67,9 +85,6 @@ public class TradeService
     public void init() {
         this.accountServiceClient = applicationContext.getBean(AccountServiceClient.class);
         this.accountServiceClient.setTradeServiceCallbackHandler(this);
-
-        this.executionServiceClient = applicationContext.getBean(ExecutionServiceClient.class);
-        this.executionServiceClient.setTradeServiceCallbackHandler(this);
 
         this.executionServiceClient = applicationContext.getBean(ExecutionServiceClient.class);
         this.executionServiceClient.setTradeServiceCallbackHandler(this);
@@ -88,13 +103,15 @@ public class TradeService
             this.jedisSub = new Jedis(ipAddress, port);
         }
         subscriber = new JedisPubSubAsync(this);
-        new Thread(() -> {
+        subscriberExecutor.submit(() -> {
             try {
                 jedisSub.subscribe(subscriber, this.outChannelName);
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("Error in TradeService subscriber", e);
             }
-        }).start();
+        });
+
+        log.info("TradeService initialized, listening on channel: {}", outChannelName);
     }
 
     /**
@@ -108,7 +125,7 @@ public class TradeService
         if (trade == null) {
             return OrderStatus.UNKNOWN;
         }
-        System.out.println("getOrderStatus: " + orderId + " Status: " + trade.getStatus());
+        log.debug("getOrderStatus: orderId={} status={}", orderId, trade.getStatus());
         return trade.getStatus();
     }
 
@@ -119,18 +136,13 @@ public class TradeService
      * @return The unique order ID for tracking purposes.
      */
     public String submitOrder(Order order) {
-        // Generate a unique order ID
         String orderId = UUID.randomUUID().toString();
         Trade trade = new Trade(orderId, order, OrderStatus.UNKNOWN);
 
-        // Add the trade to the map
         concurrentTradeStatusMap.put(orderId, trade);
-
-        // Route the order for account validation (e.g., margin requirements, credit limits)
-        // accountService.validateAccount(trade);
         accountServiceClient.send(trade);
 
-        System.out.println("submitOrder:    " + orderId);
+        log.info("Order submitted: orderId={}", orderId);
         return orderId;
     }
 
@@ -143,13 +155,11 @@ public class TradeService
         String orderId = settlementResponse.getOrderId();
         Trade trade = concurrentTradeStatusMap.get(orderId);
         trade.setSettlementMessage(settlementResponse.getMessage());
-
-        // Update order status
         trade.setStatus(OrderStatus.SETTLED);
     }
 
     @Override
-    public void callbackHandler(String channel, String message) {
+    public void onReceive(String channel, String message) {
         try {
             TradeServiceClientMessage tradeServiceClientMessage = objectMapper.readValue(message, TradeServiceClientMessage.class);
             switch (tradeServiceClientMessage.getType()) {
@@ -177,15 +187,11 @@ public class TradeService
                 break;
             }
         } catch (JsonProcessingException e) {
+            log.error("Failed to process callback message", e);
             throw new RuntimeException(e);
         }
     }
 
-    /**
-     * Callback handler used to notify the TradeService that the AccountService has validated a Trade.
-     *
-     * @param trade - to manage the lifecycle of the Trade.
-     */
     @Override
     public void onValidation(Trade trade) {
         String orderId = trade.getOrderId();
@@ -194,17 +200,12 @@ public class TradeService
             case VALIDATED: {
                 masterTrade.setStatus(OrderStatus.VALIDATED);
                 masterTrade.setValidationMessage(trade.getValidationMessage());
-                System.out.println("Validated: " + trade.getOrderId());  // Output the JSON string
+                log.info("Trade validated: orderId={}", trade.getOrderId());
                 executionServiceClient.send(masterTrade);
             }
         }
     }
 
-    /**
-     * Callback handler used to notify the TradeService that the ExecutionService has executed a Trade.
-     *
-     * @param trade - to manage the lifecycle of the Trade.
-     */
     @Override
     public void onExecution(Trade trade) {
         String orderId = trade.getOrderId();
@@ -214,17 +215,12 @@ public class TradeService
                 masterTrade.setStatus(OrderStatus.EXECUTED);
                 masterTrade.setExecutedTimestamp(trade.getExecutedTimestamp());
                 masterTrade.setExecutedPrice(trade.getExecutedPrice());
-                System.out.println("Executed:  " + trade.getOrderId());  // Output the JSON string
+                log.info("Trade executed: orderId={}", trade.getOrderId());
                 clearingServiceClient.send(masterTrade);
             }
         }
     }
 
-    /**
-     * Callback handler used to notify the TradeService that the ClearingService has cleared a Trade.
-     *
-     * @param trade - to manage the lifecycle of the Trade.
-     */
     @Override
     public void onClearing(Trade trade) {
         String orderId = trade.getOrderId();
@@ -234,17 +230,12 @@ public class TradeService
                 masterTrade.setStatus(OrderStatus.CLEARED);
                 masterTrade.setNettedAmount(trade.getNettedAmount());
                 masterTrade.setClearingMessage(trade.getClearingMessage());
-                System.out.println("Cleared:   " + trade.getOrderId());  // Output the JSON string
+                log.info("Trade cleared: orderId={}", trade.getOrderId());
                 settlementServiceClient.send(masterTrade);
             }
         }
     }
 
-    /**
-     * Callback handler used to notify the TradeService that the SettlementService has Settled a Trade.
-     *
-     * @param trade - to manage the lifecycle of the Trade.
-     */
     @Override
     public void onSettlement(Trade trade) {
         String orderId = trade.getOrderId();
@@ -253,8 +244,32 @@ public class TradeService
             case SETTLED: {
                 masterTrade.setStatus(OrderStatus.SETTLED);
                 masterTrade.setSettlementMessage(trade.getSettlementMessage());
-                System.out.println("Settled:   " + trade.getOrderId());  // Output the JSON string
+                log.info("Trade settled: orderId={}", trade.getOrderId());
             }
         }
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        log.info("Shutting down TradeService");
+        if (subscriber != null && subscriber.isSubscribed()) {
+            subscriber.unsubscribe();
+        }
+        subscriberExecutor.shutdown();
+        try {
+            if (!subscriberExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                subscriberExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            subscriberExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+        if (jedisPub != null) {
+            jedisPub.close();
+        }
+        if (jedisSub != null) {
+            jedisSub.close();
+        }
+        log.info("TradeService shutdown complete");
     }
 }

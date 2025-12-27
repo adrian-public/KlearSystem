@@ -4,18 +4,27 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.klear.model.trade.Trade;
 import com.klear.services.TradeServiceCallbackHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPubSub;
 
+import jakarta.annotation.PreDestroy;
+
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static com.klear.communication.core.ServiceClientMessageTypes.ON_RECEIVE;
 import static com.klear.communication.core.ServiceClientMessageTypes.SEND;
 
 @Component
 public abstract class ServiceClient implements ServiceClientInterface, ServiceClientCallback {
+
+    private static final Logger log = LoggerFactory.getLogger(ServiceClient.class);
 
     @Value("${redis_ip}")
     private String ipAddress;
@@ -32,11 +41,17 @@ public abstract class ServiceClient implements ServiceClientInterface, ServiceCl
     private String retChannelName;
     private String outChannelName;
 
+    private final ExecutorService subscriberExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "ServiceClient-subscriber");
+        t.setDaemon(false);
+        return t;
+    });
+
     private final ObjectMapper objectMapper = new ObjectMapper();
     private TradeServiceCallbackHandler tradeServiceCallbackHandler;
 
     public ServiceClient() {
-        System.out.println("ServiceClient created.");
+        log.debug("ServiceClient created");
     }
 
     public void init() {
@@ -52,17 +67,41 @@ public abstract class ServiceClient implements ServiceClientInterface, ServiceCl
             this.jedisSub = new Jedis(ipAddress, port);
         }
         subscriber = new JedisPubSubAsync(this);
-        new Thread(() -> {
+        subscriberExecutor.submit(() -> {
             try {
                 jedisSub.subscribe(subscriber, this.retChannelName);
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("Error in ServiceClient subscriber", e);
             }
-        }).start();
+        });
+        log.info("ServiceClient initialized, listening on channel: {}", retChannelName);
     }
 
-    // Close the Redis connection when done
+    @PreDestroy
     public void close() {
+        log.info("Closing ServiceClient");
+        if (subscriber != null && subscriber.isSubscribed()) {
+            subscriber.unsubscribe();
+        }
+        subscriberExecutor.shutdown();
+        try {
+            if (!subscriberExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                subscriberExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            subscriberExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+        if (jedisPubSend != null) {
+            jedisPubSend.close();
+        }
+        if (jedisPubOnReceive != null) {
+            jedisPubOnReceive.close();
+        }
+        if (jedisSub != null) {
+            jedisSub.close();
+        }
+        log.info("ServiceClient closed");
     }
 
     @Override
@@ -71,10 +110,10 @@ public abstract class ServiceClient implements ServiceClientInterface, ServiceCl
             ServiceClientMessage serviceClientMessage = new ServiceClientMessage(
                     SEND, this.retChannelName, (Object) trade);
             String message = objectMapper.writeValueAsString(serviceClientMessage);
-            System.out.println("ServiceClient: send: " + message);  // Output the JSON string
+            log.debug("ServiceClient sending: orderId={}", trade.getOrderId());
             jedisPubSend.publish(this.outChannelName, message);
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
+            log.error("Failed to serialize message for trade: {}", trade.getOrderId(), e);
         }
     }
 
@@ -108,6 +147,7 @@ public abstract class ServiceClient implements ServiceClientInterface, ServiceCl
                 }
             }
         } catch (JsonProcessingException e) {
+            log.error("Failed to parse received message", e);
             throw new RuntimeException(e);
         }
     }
@@ -115,5 +155,4 @@ public abstract class ServiceClient implements ServiceClientInterface, ServiceCl
     public void setTradeServiceCallbackHandler(TradeServiceCallbackHandler tradeServiceCallbackHandler) {
         this.tradeServiceCallbackHandler = tradeServiceCallbackHandler;
     }
-
 }

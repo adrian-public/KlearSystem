@@ -11,9 +11,9 @@ public class Trade {
     private long executedTimestamp;
     private double nettedAmount;
     private OrderStatus status;
-    private String ValidationMessage = "";
-    private String ClearingMessage = "";
-    private String SettlementMessage = "";
+    private String validationMessage = "";
+    private String clearingMessage = "";
+    private String settlementMessage = "";
 
     public Trade(){}
 
@@ -69,27 +69,27 @@ public class Trade {
     }
 
     public String getValidationMessage() {
-        return ValidationMessage;
+        return validationMessage;
     }
 
     public void setValidationMessage(String validationMessage) {
-        ValidationMessage = validationMessage;
+        this.validationMessage = validationMessage;
     }
 
     public String getClearingMessage() {
-        return ClearingMessage;
+        return clearingMessage;
     }
 
     public void setClearingMessage(String clearingMessage) {
-        ClearingMessage = clearingMessage;
+        this.clearingMessage = clearingMessage;
     }
 
     public String getSettlementMessage() {
-        return SettlementMessage;
+        return settlementMessage;
     }
 
     public void setSettlementMessage(String settlementMessage) {
-        SettlementMessage = settlementMessage;
+        this.settlementMessage = settlementMessage;
     }
 
     public long getExecutedTimestamp() {

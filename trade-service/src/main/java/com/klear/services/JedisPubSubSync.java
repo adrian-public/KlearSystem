@@ -1,27 +1,31 @@
 package com.klear.services;
 
+import com.klear.communication.core.ServiceClientCallback;
 import redis.clients.jedis.JedisPubSub;
 
+/**
+ * Synchronous JedisPubSub implementation that notifies a mutex after processing.
+ * Used for request-response patterns where the caller waits for a response.
+ */
 public class JedisPubSubSync extends JedisPubSub {
-    private final TradeServiceClientCallback tradeServiceClientCallback;
+    private final ServiceClientCallback serviceClientCallback;
     private final Object mutex;
-    public JedisPubSubSync(TradeServiceClientCallback tradeServiceClientCallback, Object mutex) {
-        this.tradeServiceClientCallback = tradeServiceClientCallback;
+
+    public JedisPubSubSync(ServiceClientCallback serviceClientCallback, Object mutex) {
+        this.serviceClientCallback = serviceClientCallback;
         this.mutex = mutex;
     }
 
     @Override
     public void onMessage(String channel, String message) {
-        // This method will be called when a message is received
-        // System.out.println("Received message from channel " + channel + ": " + message);
         synchronized (mutex) {
-            this.tradeServiceClientCallback.callbackHandler(channel, message);
+            this.serviceClientCallback.onReceive(channel, message);
             mutex.notify();
         }
     }
 
     @Override
     public void onSubscribe(String channel, int subscribedChannels) {
-        //System.out.println("Subscribed to channel: " + channel);
+        // Subscription confirmed
     }
 }
